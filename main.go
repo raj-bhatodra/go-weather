@@ -3,6 +3,7 @@ package main
 import (
 	"encoding/json"
 	"fmt"
+	"log"
 	"net/http"
 	"os"
 
@@ -85,7 +86,15 @@ func main() {
 	r.HandleFunc("/hello", hello)
 	r.HandleFunc("/weather/{city}", weatherHandler)
 
-	http.Handle("/", r)
+	http.Handle("/", r) // Register the router as the handler for incoming requests
 
-	http.ListenAndServe(":8080", nil)
+	go func() {
+		err := http.ListenAndServe(":8080", nil)
+		if err != nil {
+			log.Fatalf("Error starting server: %s", err)
+		}
+	}()
+
+	fmt.Println("Server is listening on port 8080")
+	select {}
 }

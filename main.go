@@ -3,15 +3,14 @@ package main
 import (
 	"encoding/json"
 	"fmt"
+	"log"
 	"net/http"
-	"os"
 
 	"github.com/gorilla/mux"
 )
 
-type apiConfigData struct {
-	OpenWeatherMapKey string `json:"OpenWeatherMapKey"`
-}
+// Define your API key directly here
+const OpenWeatherMapKey = "fd3c8caaa887ba999bdd97145cdb6289"
 
 type weatherData struct {
 	Name string `json:"name"`
@@ -20,27 +19,8 @@ type weatherData struct {
 	} `json:"main"`
 }
 
-func loadApiConfig(filename string) (*apiConfigData, error) {
-	bytes, err := os.ReadFile(filename)
-	if err != nil {
-		return nil, err
-	}
-
-	var c apiConfigData
-
-	err = json.Unmarshal(bytes, &c)
-	if err != nil {
-		return nil, err
-	}
-	return &c, nil
-}
-
-func hello(w http.ResponseWriter, r *http.Request) {
-	w.Write([]byte("Hello World!\n"))
-}
-
-func query(city string, apiKey string) (weatherData, error) {
-	resp, err := http.Get(fmt.Sprintf("https://api.openweathermap.org/data/2.5/weather?appid=%s&q=%s", apiKey, city))
+func query(city string) (weatherData, error) {
+	resp, err := http.Get(fmt.Sprintf("https://api.openweathermap.org/data/2.5/weather?appid=%s&q=%s", OpenWeatherMapKey, city))
 	if err != nil {
 		return weatherData{}, err
 	}
@@ -52,6 +32,10 @@ func query(city string, apiKey string) (weatherData, error) {
 	if err := json.NewDecoder(resp.Body).Decode(&d); err != nil {
 		return weatherData{}, err
 	}
+
+	// Print the response to the terminal
+	fmt.Printf("Response: %+v\n", d)
+
 	return d, nil
 }
 
@@ -63,13 +47,7 @@ func weatherHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	apiConfig, err := loadApiConfig(".env")
-	if err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
-		return
-	}
-
-	data, err := query(city, apiConfig.OpenWeatherMapKey)
+	data, err := query(city)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
@@ -82,10 +60,12 @@ func weatherHandler(w http.ResponseWriter, r *http.Request) {
 func main() {
 	r := mux.NewRouter()
 
-	r.HandleFunc("/hello", hello)
 	r.HandleFunc("/weather/{city}", weatherHandler)
 
-	http.Handle("/", r)
+	http.Handle("/", r) // Register the router as the handler for incoming requests
 
-	http.ListenAndServe(":8080", nil)
+	err := http.ListenAndServe(":8080", nil)
+	if err != nil {
+		log.Fatalf("Error starting server: %s", err)
+	}
 }
